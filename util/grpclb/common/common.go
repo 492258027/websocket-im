@@ -9,7 +9,6 @@ import (
 const (
 	WeightKey  = "weight"
 	InstanceId = "instanceId"
-	GrpcPort   = "grpcPort"
 )
 
 type ServiceInfo struct {

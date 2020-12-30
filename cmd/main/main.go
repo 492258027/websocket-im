@@ -1,17 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	h "websocket-im/handlers"
 	m "websocket-im/millipede"
 	pb "websocket-im/pb"
 	"websocket-im/util/bootstrap"
-	"websocket-im/util/grpclb/balancer"
+	//"websocket-im/util/grpclb/balancer"
 	"websocket-im/util/grpclb/common"
 	"websocket-im/util/grpclb/consul"
 	"websocket-im/util/log"
@@ -57,12 +61,11 @@ func main() {
 	r, err := consul.InitRegister(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port, &common.ServiceInfo{
 		InstanceId: bootstrap.ConsulConfig.InstanceId,
 		SerName:    bootstrap.ConsulConfig.ServiceName,
-		Ip:         bootstrap.HttpConfig.Host,
-		Port:       bootstrap.HttpConfig.Port,
+		Version:    bootstrap.ConsulConfig.Version,
+		Ip:         bootstrap.RpcConfig.Host,
+		Port:       bootstrap.RpcConfig.Port,
 		Metadata: map[string]string{
-			common.WeightKey:  "1",
 			common.InstanceId: bootstrap.ConsulConfig.InstanceId,
-			common.GrpcPort:   strconv.Itoa(bootstrap.RpcConfig.Port),
 		},
 	}, 5)
 	if err != nil {
@@ -71,9 +74,9 @@ func main() {
 	defer r.Unregister()
 
 	//初始化grpc client
-	conn, err := consul.InitResolver(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port, bootstrap.ConsulConfig.ServiceName, balancer.InstanceID)
+	conn, err := consul.InitResolver(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port, bootstrap.ConsulConfig.ServiceName + ":" + bootstrap.ConsulConfig.Version, "round_robin")
 	if err != nil {
-		log.Logrus.Fatalln("Fail to register consul", err)
+		log.Logrus.Fatalln("Fail to resolver consul", err)
 	}
 	defer conn.Close()
 	// 建立gRPC连接
@@ -99,6 +102,7 @@ func main() {
 
 	// Mechanical domain.
 	errc := make(chan error)
+	go InterruptHandler(errc)
 
 	//webscoket server
 	go func() {
@@ -146,4 +150,14 @@ func main() {
 
 	// Run!
 	log.Logrus.Debugln("exit", <-errc)
+}
+
+func InterruptHandler(errc chan<- error) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	terminateError := fmt.Errorf("%s", <-c)
+
+	// Place whatever shutdown handling you want here
+
+	errc <- terminateError
 }

@@ -41,6 +41,8 @@ func (r *consulResolver) Build(target resolver.Target, cc resolver.ClientConn, o
 
 //每次改变时触发
 func (r *consulResolver) watcher(serName string) {
+	log.Println("watcher serName", serName)
+
 	for {
 		entries, metainfo, err := r.cli.Health().Service(serName, "", true, &api.QueryOptions{WaitIndex: r.lastIndex})
 		if err != nil {
@@ -85,7 +87,7 @@ func (r *consulResolver) Scheme() string {
 }
 
 func (r *consulResolver) ResolveNow(rn resolver.ResolveNowOptions) {
-	log.Println("ResolveNow")
+	//log.Println("ResolveNow")
 }
 
 func (r *consulResolver) Close() {

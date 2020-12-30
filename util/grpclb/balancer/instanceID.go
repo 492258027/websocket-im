@@ -15,17 +15,17 @@ func init() {
 }
 
 func newInstanceBuilder() balancer.Builder {
-	return base.NewBalancerBuilderV2(InstanceID, &instancePickerBuilder{}, base.Config{HealthCheck: true})
+	return base.NewBalancerBuilder(InstanceID, &instancePickerBuilder{}, base.Config{HealthCheck: true})
 }
 
 type instancePickerBuilder struct {
 }
 
 //每次地址集有改变，均调用
-func (r *instancePickerBuilder) Build(buildInfo base.PickerBuildInfo) balancer.V2Picker {
+func (r *instancePickerBuilder) Build(buildInfo base.PickerBuildInfo) balancer.Picker {
 
 	if len(buildInfo.ReadySCs) == 0 {
-		return base.NewErrPickerV2(balancer.ErrNoSubConnAvailable)
+		return base.NewErrPicker(balancer.ErrNoSubConnAvailable)
 	}
 
 	picker := &instancePicker{

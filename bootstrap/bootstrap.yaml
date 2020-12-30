@@ -1,55 +1,47 @@
-#http服务运行地址和端口
-#在docker和k8s中运行的情况下，host不填写
-http:
-  #host:
-  host: 192.168.73.3
-  port: 5350
-
-#rpc服务运行地址和端口
-#在docker和k8s中运行的情况下，host不填写
-rpc:
-  #host:
-  host: 192.168.73.3
-  port: 5340
-
 #websocket服务运行地址和端口
 #在docker和k8s中运行的情况下，host不填写
 websocket:
   #host:
-  host: 192.168.73.3
-  port: 5360
+  host: "192.168.73.3"
+  port: 5340
+
+#rpc服务运行地址和端口
+#在docker和k8s中运行的情况下，host不填写
+rpc:
+  host: "192.168.73.3"
+  port: 5350
 
 #manager服务运行地址和端口
 #在docker和k8s中运行的情况下，host不填写
 manager:
-  #host:
-  host: 192.168.73.3
-  port: 5370
+  host: "192.168.73.3"
+  port: 5360
 
 #consul的地址和端口
 #注册到consul上的实例ID和微服务名
 consul:
-  host: 192.168.73.3
+  host: "192.168.73.3"
   port: 8500
-  instanceId: 1
-  serviceName: im
+  serviceName: "im"
+  version: "1.0"
+  instanceId: "1"
 
 rabbitMq:
   #链接池容量
   poolSize: 10
   #URI
-  amqpURI: amqp://root:root@192.168.73.3:5672/
+  amqpURI: "amqp://root:root@192.168.73.3:5672/"
   #交换机名称
-  exchangeName: exchange_im
+  exchangeName: "exchange_im"
   #交换机类型
-  exchangeType: direct
+  exchangeType: "direct"
   #队列名称, queue_微服务名_实例ID (注册到consul上的微服务名和实例ID)
-  queueName: queue_im_1
+  queueName: "queue_im_1"
   #routingkey名称
-  routingKey: im_1
+  routingKey: "im_1"
 
 redis:
-  clusterIPs: 192.168.73.3:6379, 192.168.73.3:6380, 192.168.73.3:6381, 192.168.73.3:6382, 192.168.73.3:6383, 192.168.73.3:6384
+  clusterIPs: "192.168.73.3:6379, 192.168.73.3:6380, 192.168.73.3:6381, 192.168.73.3:6382, 192.168.73.3:6383, 192.168.73.3:6384"
   poolSize:	10
   minIdleConns: 10
   password:

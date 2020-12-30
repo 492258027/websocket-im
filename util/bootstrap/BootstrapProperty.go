@@ -31,6 +31,7 @@ type ConsulConf struct {
 	Host        string
 	Port        int
 	ServiceName string
+	Version     string
 	InstanceId  string
 	Weight      int
 }
@@ -74,6 +75,7 @@ type MqConf struct {
 }
 
 //redis
+//viper 可以把按逗号分隔的字符串读成切片
 type RedisConf struct {
 	ClusterIPs   []string
 	PoolSize     int
