@@ -1,0 +1,710 @@
+syntax = "proto3";
+package im;
+
+service IM {
+  //用于多millipede之间通过grpc转发消息。
+  rpc Forward (MsgSt) returns (ForwardResponse) {}
+}
+
+message ForwardResponse {
+   string Out = 1;
+}
+
+enum MsgTypeEnum{
+    UNDEFINED = 0;          
+    LOGIN = 1;              //登录
+    LOGOUT = 2;             //退出登录,没有消息体
+    ACK = 3;                //ack
+    PRICHAT = 4;            //私聊聊天消息，包括消息已读 消息撤回
+    GROUPCHAT = 5;          //群聊聊天消息，包括消息已读 消息撤回
+    HEARTBEAT = 6;          //心跳包,没有消息体
+    GROUPCHANGE = 7;        //群关系维护消息
+    NEWMSG = 8;             //willingox向MQ发送的新消息通知,没有消息体
+    KICKOUT = 9;            //踢人消息
+    PRIINSTANT = 10;        //私聊即时消息，不需要存chatmq，消息体还是聊天消息（比如推送即时消息，客户端正在写入等
+    GROUPINSTANT = 11;      //群聊即时消息，不需要存chatmq，消息体还是聊天消息（比如推送即时消息，客户端正在写入等
+    ENTERFOREGROUND = 12;   //client切到前台,没有消息体
+    ENTERBACKGROUND = 13;   //client切入后台
+    SERVERCMD = 14;         //服务端测试消息
+    CONFMSG = 15;           //视频会议消息（会议结束）
+    VIDEOCALL = 16;         //videocall消息
+    VIDEOCALLINSTANT = 17;  //videocall即时消息  离线需要推送
+    CONFMSGINSTANT = 18;    //视频会议消息即时消息（邀请入会）
+    NOTICEPUSH = 19;        //通知推送消息，推送给在线游客和在线用户
+}
+
+enum ContentTypeEnum{
+    UNDEFINED1 = 0;
+    TXT = 1;                //文本消息
+    IMG = 2;                //图片消息
+    VOICE = 3;              //语音消息
+    VIDEO = 4;              //视频消息
+    LOCATION = 5;           //位置消息
+    FILE = 6;               //文件消息
+    CUSTOM = 7;             //自定义消息
+    RECALL = 8;             //撤回消息
+    READED = 9;             //消息已读
+    CMDCONT = 10;           //命令消息
+    ATCONT = 11;            //@消息
+    BUZCONT = 12;           //业务消息
+    REDPKT = 13;            //发红包消息
+    REDPKTNOTICE = 14;      //收红包通知消息 没有消息体
+    TXTWITHTITLE = 15;      //文本消息，带有title
+}
+
+enum GroupMsgTypeEnum{
+    UNDEFINED2 = 0;
+    ADD_MEM = 1;            //邀请入群
+    DEL_MEM = 2;            //删除群员
+    MEM_QUIT = 3;           //群员退出
+    DISMISS = 4;            //解散群
+    CHANGE_OWNER = 5;       //换群主
+    CHANGE_NAME = 6;        //更改群名称
+    CHANGE_DES = 7;         //更改群描述
+    CHANGE_MAXUSERS = 8;    //更改群成员上限
+    CHANGE_ANNOUNCE = 9;    //更改群公告
+    CHANGE_AVATAR = 10;     //更改群头像
+    CHANGE_TOP = 11;        //更改群配置
+    CHANGE_Disturb = 12;    //更改群配置
+}
+
+enum AckCodeEnum{
+    UNDEFINED3 = 0;
+    OK = 1;                 //成功
+    NAMENOTFOUND = 2;       //账号未找到
+    PASSWORDERR = 3;        //密码错误
+    FORBIDDEN = 4;          //权限错误(例如自动登录失败)
+    UNAUTHORIZED = 5;       //未登录
+    INTERNALSERVERERR = 6;  //服务器内部错误
+    BAD_REQUEST = 7;        //客户端请求语法错误或字段参数值错误
+    MSGFIELD_LACK = 8;      //消息字段缺失
+}
+
+enum KickTypeEnum{
+    UNDEFINED4 = 0;
+    SAMEITEMLOGIN = 1;      //同端踢人
+    SRVKICKOUT = 2;         //服务端强制下线
+    SRVDELUSER = 3;         //服务端删除用户
+    SRVDISABLEUSER = 4;     //服务端禁用用户
+    CHANGEPWD = 5;          //修改密码
+}
+
+enum DeviceTypeEnum{
+    UNDEFINED13 = 0;
+    ANDROID = 1;            //安卓移动设备
+    IOS = 2;                //ios移动设备
+    WIN = 3;                //windows PC
+    MAC = 4;                //MAC PC
+    ALL = 5;                //pc和手机端
+    PC = 6;                 //pc
+    PHONE = 7;              //移动设备
+    WEB = 8;                //网页端
+}
+
+enum PhoneTypeEnum{
+    UNDEFINED14 = 0;
+    IPHONE = 1;             //苹果
+    HUAWEI = 2;             //华为
+    MEIZU = 3;              //魅族
+    XIAOMI = 4;             //小米
+    VIVO = 5;               //vivo
+    OPPO = 6;               //oppo
+}
+
+//用户状态
+enum UserStatEnum{
+    UNDEFINED15 = 0;
+    CONNECT = 1;                        //连接,未登录
+    ONLINE = 2;                         //登陆成功,允许重复登录
+    OFFLINE = 3;                        //离线
+    ACTIVEQUIT = 4;                     //主动退出登录
+    BACKSTAGE = 5;                      //ios专用,此状态时，新消息到达通知和IOS推送同时执行
+}
+
+//离线推送开关
+enum PushSwitchEnum{
+    UNDEFINED16 = 0;
+    ON = 1;                             //开启推送
+    OFF = 2;                            //关闭推送
+    OFF_AT_NIGHT = 3;                   //夜间关闭推送  22:00 -- 7:00
+}
+
+//***********  保存在redis中的用户信息       ************//
+message UserRedisSt {
+    UserStatEnum    userstat = 1;               //用户状态
+    string          version = 2;                //sdk版本号
+    DeviceTypeEnum  deviceType = 3;     //device类型
+    string          deviceModel = 4;            //device型号
+    string          deviceId = 5;               //device ID
+    string          millipedeId = 6;            //millipede ID
+    PhoneTypeEnum   phoneType = 7;            //华为、小米、魅族  弃用， 改用PhoneTypeEnum
+    string          pushToken = 8;              //token,推送使用
+    int32           unReadNum = 9;              //未读消息数
+    PushSwitchEnum  pushSwitch = 10;            //离线推送开关
+    int32           isPushDetail = 11;          //推送是否显示详情，1:"昵称:消息",2:"您有一条新消息"
+    string          package_name = 12;          //安卓：应用包名，ios：bundle_id
+    string          app_key = 13;
+}
+
+//***********       聊天消息体种类     ************//
+//文本消息
+message TxtContentSt {
+    string content = 1;
+    string title = 2;
+}
+
+message ImgContentSt {
+    int32 fileSize = 1;     //图片文件大小
+    string fileName = 2;    //图片文件名称
+    int32 height = 3;       //图片高度
+    int32 width = 4;        //图片宽度
+    int32 isOriginal = 5;   //是否发送原图，1：原图，2：非原图，即压缩图        
+    string url = 6;         //原图url
+    string compressUrl = 7; //压缩图url
+    string thumbUrl = 8;    //缩略图url
+    // int32 thumbHeight = 5;  //图片高度
+    // int32 thumbWidth = 6;   //图片宽度
+    string hashCode = 9;    //文件的hashCode
+}
+
+message VoiceContentSt {
+    int32 fileSize = 1;     //语音文件大小
+    string fileName = 2;    //语音文件名称
+    int32 length = 3;       //语音长度
+    string url = 4;         //语音文件url地址
+    string hashCode = 5;    //文件的hashCode
+}
+
+message VideoContentSt { 
+    int32 fileSize = 1;         //视频文件大小
+    string fileName = 2;        //视频文件名称
+    int32 length = 3;           //视频长度
+    int32 height = 4;           //视频缩略图高度
+    int32 width = 5;            //视频缩略图宽度
+    string videoUrl = 6;        //视频文件url地址
+    string imgThumbUrl = 7;     //视频缩略图文件url地址(!sm)
+    string imgCompressUrl = 8;  //视频压缩图文件url地址(大图)
+    string hashCode = 9;        //文件的hashCode
+}
+
+message FileContentSt {
+    int32 fileSize = 1;     //文件大小
+    string fileName = 2;    //文件名称
+    string url = 3;         //文件url地址
+    int32 sourceType = 4;   //默认0，普通文件，ui调用者填写该字段
+    string hashCode = 5;    //文件的hashCode
+}
+
+message LocationContentSt {
+    double latitude = 1;     //位置-纬度
+    double longitude = 2;    //位置-经度
+    string des = 3;          //位置地址描述
+}
+
+//撤回消息
+message RecallContentSt {
+    int64 serverMsgId = 1;  //server端消息ID
+}
+
+//客户端消息已读消息
+message ReadedContentSt{
+    repeated int64 serverMsgId = 1;  //server端消息ID
+}
+
+//cmd消息
+message CmdContentSt{
+    string action = 1;   //1000--2000 预留 im sdk自用
+}
+//@消息  特殊的文本消息  1/@几个人，则用userId,2/@all 则用isAll字段
+message AtContentSt{
+    repeated string userId = 1;   
+    int32 isAll = 2;                //1:all
+    string txtContent = 3;          //@username1, @username2,hello world
+}
+//业务消息
+message BuzContentSt{
+    string tendId = 1;
+    string moduleName = 2;
+    int32 moduleType = 3;
+    int32 openStatus = 4;
+    int32 openType = 5;
+    string pcurl = 6;
+    string murl = 7;
+    string moduleIconUrl = 8;
+    string cname = 9;
+}
+
+//***********       GROUP消息体种类     ************//
+//群详情
+message GroupDetailSt {
+    string  groupId = 1;        //群ID
+    string  companyId = 2;      //公司ID
+    string  appName = 3;        //
+    string  ownerId = 4;        //群主id
+    string  name = 5;           //群名称
+    string  des = 6;            //群描述
+    string  announcement = 7;   //群公告
+    int32   maxUserNum = 8;     //群最大成员
+    string  avatarUrl = 9;      //群头像
+    int32   isTop = 10;         //1:置顶,2:不置顶
+    int64   topTime = 11;       //置顶时间
+    int32   isDisturb = 12;     //1:免打扰,2:打扰
+    string  ext = 13;           //扩展字段
+    int32   memberNum = 14;     //群人数
+}
+//群成员
+message GroupMembersSt {
+    string groupId = 1;         //群ID
+    repeated string userId = 2; //群成员ID
+}
+//邀请入群
+message GroupAddMemSt {
+    string uid = 1;             //邀请者userID
+    repeated string addUid = 2; //被邀请者userID
+    string groupId = 3;         //群ID
+    repeated string userInfo = 4;
+}
+
+//删除群成员(群主或企业管理员)
+message GroupDelMemSt {
+    string operId = 1;          //操作者ID(群主id或server)
+    repeated string delUid = 2; //被删除者userID
+    string groupId = 3;         //群ID
+}
+
+//群成员主动退群
+message GroupMemQuitSt {
+    string quitUid = 1;         //退出者userID
+    string newOwnerUid = 2;     //新群主(如果退出者为群主)
+    string groupId = 3;         //群ID
+}
+//群主或企业管理员将群解散
+message GroupDismissSt {
+    string operId = 1;          //操作者ID(群主id或server)
+    string groupId = 2;         //群ID
+}
+//更改群主
+message GroupChangeOwnerSt {
+    string oldOwnerUid = 1;     //老群主userID
+    string newOwnerUid = 2;     //新群主userID
+    string groupId = 3;         //群ID
+    string operId = 4;          //操作者ID(群主id或server)
+}
+//更改群名
+message GroupChangeNameSt {
+    string newName = 1;         //新群名
+    string groupId = 2;         //群ID
+    string operId = 3;          //操作者ID(群主id或server)
+}
+//更改群头像
+message GroupChangeAvatarSt {
+    string newUrl = 1;          //新群头像
+    string groupId = 2;         //群ID
+    string operId = 3;          //操作者ID(群主id或server)
+}
+//更改群配置
+message GroupChangeTopSt {
+    string groupId = 1;         //群ID
+    int32 isTop = 2;            //1:置顶,2:不置顶
+    int64 topTime = 3;          //置顶时间
+}
+message GroupChangeDisturbSt {
+    string groupId = 1;         //群ID
+    int32 isDisturb = 2;        //1:免打扰,2:打扰
+}
+
+//更改群描述
+message GroupChangeDesSt {
+    string newDes = 1;          //新群描述
+    string groupId = 2;         //群ID
+    string operId = 3;          //操作者ID(群主id或server)
+}
+//更改群公告
+message GroupChangeAnnounceSt {
+    string newAnnounce = 1;     //新群公告
+    string groupId = 2;         //群ID
+    string operId = 3;          //操作者ID(群主id或server)
+}
+
+//更改群成员上限
+message GroupChangeMaxUsersSt {
+    int32 newMaxUsers = 1;      //新群成员上限
+    string groupId = 2;         //群ID
+    string operId = 3;          //操作者ID(群主id或server)
+}
+//***********       视频会议消息体     ************//
+//视频会议消息类型
+enum ConfTypeEnum{
+    UNDEFINED5 = 0;
+    INVITE = 1;             //邀请入会
+    ACCEPT = 2;             //同意入会
+    REFUSE = 3;             //拒绝入会
+    CREATERHANGUP = 4;      //创建者挂断会议
+    CMD = 5;                //cmd消息
+}
+//用户信息
+message ConfUserInfo {
+    string userId = 1;      //
+    string userName = 2;    //
+    string photo = 3;       //头像url
+}
+//视频会议消息体
+message CommonContentSt{
+    int64 confId = 1;
+    repeated ConfUserInfo userList = 2;
+    int64 confType = 3;     //音频、视频
+    ConfUserInfo creater = 4;
+    ChatSession session = 5;
+    string password = 6;
+}
+//视频会议消息
+message ConfMsgSt {
+    ConfTypeEnum confType = 1;          //消息体类型
+    bytes ext = 2;                      //扩展字段
+    CommonContentSt commonContent = 3;  //通用视频会议消息体,邀请、同意、拒绝都对应这个消息体
+}
+//视频session
+message ChatSession {
+    string  sessionId = 1;
+    int64   sessionType = 2;
+}
+//***********       Call消息体     ************//
+//Call消息类型
+enum CallTypeEnum{
+    UNDEFINED6 = 0;
+    INVITE1 = 1;                 //邀请
+    HANGUP1 = 2;                 //挂断 已连接成功  ws没有消息体
+    CANCEL1 = 3;                 //取消 未连接成功时创建者取消 ws没有消息体
+    ACCEPT1 = 4;                 //同意
+    REFUSE1 = 5;                 //拒绝 被邀请人拒绝 ws没有消息体
+    BUSY1 = 6;                   //忙线 被邀请人忙 ws没有消息体
+    ANSWERONOTHERDEV1 = 7;       //已在其他设备接听 ws没有消息体
+    CREATE1 = 8;                 //创建并邀请
+    JOIN1 = 9;                   //被邀请者加入
+    REJOIN1 = 10;                //重新加入(创建者或被邀请者)
+    DATA1 = 11;                  //传输数据
+    ANSWER1 = 12;                //answer消息  点击同意时才发送
+    ACK1 = 13;                   //ack
+    CMD1 = 14;                   //cmd消息 ws没有消息体
+    HEARTBEAT1 = 15;             //心跳包,ws没有消息体
+}
+enum RoomTypeEnum{
+    UNDEFINED7 = 0;
+    ONEVSONE = 1;           //1V1
+    ONEVSN = 2;             //1VN
+    MULTIPERSON = 3;            //多人会议
+}
+//用户信息
+message CallUserInfo {
+    string userId = 1;      //app_key_uid
+    string userName = 2;    //
+    string photo = 3;       //头像url
+}
+//Call服务器消息体  创建者从queen获取的
+message CallServerSt{
+    string colliderUrl = 1;
+    string turnUrl = 2;
+    string turnUsername = 3;
+    string turnPassword = 4;
+}
+message CallCreateSt{
+    CallUserInfo creater = 1;
+    repeated CallUserInfo inviterList = 2;
+    RoomTypeEnum RoomType = 3;
+    int64 chatType = 4;                     //1：音频、2：视频
+    ChatSession session = 5;
+    CallServerSt CallServer = 6;            //服务器信息
+}
+message CallJoinSt{
+    string roomId = 1;
+}
+message CallDataSt{
+    bytes data = 1;                         //offer、andidate数据
+}
+message CallAnswerSt{
+    bytes data = 1;                         //answer数据
+}
+message CallRejoinSt{
+    string roomId = 1;
+}
+//客户端回ack消息
+message Cli2SerAckMsgSt {
+  repeated int64 serverMsgId = 1;   //client向server端回ack,可一次回多条
+}
+//服务端回ack消息,ack带有client消息ID和对应的server端消息ID,server端消息ID在ack结构体外
+message Ser2CliAckMsgSt {
+    CallTypeEnum CallType = 1;    //消息类型
+    int64 clientMsgId = 2;        //客户端消息ID
+    string des = 3;               //当返回错误时，msg会返回最新登陆的客户端的描述信息，可以直接用于客户端的显示
+    string roomId = 4;
+//    im_err.ErrEnum code = 5;      //返回状态码
+    string code = 5;      //返回状态码
+}
+//CallWs消息
+message CallWsMsgst {
+    int64 clientMsgId = 1;              //client消息ID
+    int64 serverMsgId = 2;              //server端消息ID
+    string description = 3;             //提示
+    CallTypeEnum callType = 4;          //消息体类型
+    bytes ext = 5;                      //扩展字段
+    Cli2SerAckMsgSt cli2serAckMsg = 6;  //client向server发送ack
+    CallCreateSt callCreate = 7;
+    CallJoinSt callJoin = 8;
+    CallDataSt callData = 9;
+    CallAnswerSt callAnswer = 10;
+    CallRejoinSt callRejoin = 11;
+    Ser2CliAckMsgSt ser2cliAckMsg = 12; //server向client发送ack
+}
+message CallMsgst {
+    string description = 1;                 //提示
+    CallTypeEnum CallType = 2;              //消息体类型
+    bytes ext = 3;                          //扩展字段
+    CallUserInfo creater = 4;               
+    repeated CallUserInfo inviterList = 5;
+    string roomId = 6;
+    RoomTypeEnum RoomType = 7;
+    int64 chatType = 8;                     //1：音频、2：视频
+    ChatSession session = 9;
+    CallServerSt CallServer = 10;           //服务器信息
+}
+//***********       红包消息定义red packet     ************//
+enum RedPktMsgTypeEnum{
+    UNDEFINED8 = 0;
+    SEND = 1;       //发红包
+    OPEN = 2;       //开红包
+}
+enum RedPktTypeEnum{
+    UNDEFINED9 = 0;
+    ORDINARY = 1;   //普通
+    LUCKY = 2;      //拼手气
+    AVERAGE = 3;    //平均
+}
+enum RedPktStateEnum{
+    UNDEFINED10 = 0;
+    WAITPAY = 1;    //待支付
+    PaySuccess = 2; //支付完成
+    EXPIRE = 3;     //过期
+    TAKEOVER = 4;  //被领完
+}
+enum RedPktToTypeEnum{
+    UNDEFINED12 = 0;    
+    REDPKTPRIVATE = 1;  //私聊红包
+    REDPKTGROUP = 2;    //群聊红包
+}
+message RedPktMsgst {
+    bytes ext = 1;                          //扩展字段
+    string title = 2;                       //提示  发用
+    string outBizNo = 3;                    //红包id 唯一标识
+    RedPktMsgTypeEnum redpktMsgType = 4;    //消息体类型 收、发、过期 用
+    RedPktTypeEnum redpktType = 5;          //红包类型 收、发、过期 用
+    double amount = 6;                      //金额 发红包用
+    string senderNickName = 7;              //发红包人的昵称  发红包用
+    string senderPicUrl = 8;                //发红包人的头像  发红包用
+    RedPktStateEnum redPktState = 9;        //红包状态
+}
+message RedPktNoticeMsgst {
+    bytes ext = 1;                    //扩展字段
+    string outBizNo = 2;              //红包id 唯一标识
+    string nickName = 3;              //收红包人的昵称
+    string picUrl = 4;                //收红包人的头像
+}
+
+//***********       敏感词过滤     ************//
+enum SenWordRetTypeEnum{
+    UNDEFINED11 = 0;
+    REPLACESUC = 1;   //替换成功   上报给客户端发送成功并需替换内容
+    NONEEDREPLACE = 2;//无需替换   上报给客户端发送成功
+    CHECKERR = 3;     //校验失败   上报给客户端发送失败
+    CHECKSUC = 4;     //校验成功   上报给客户端发送成功
+}
+//***********       其它消息定义     ************//
+//客户端回ack消息
+message Client2ServerAckMsgSt {
+  repeated int64 serverMsgId = 1;   //client向server端回ack,可一次回多条
+}
+//客户端回ack消息
+//客户端收到批量群聊消息，ack只需要回复该groupId的最后一个msgid
+//客户端收到批量NOTICEPUSH消息，ack只需要回复最后一个msgid
+message Client2ServerAckMsgSt2 {
+  int64 serverMsgId = 1;   
+  string groupId = 2;               //群ID
+  MsgTypeEnum msgType = 3;          //消息类型 只填NOTICEPUSH GROUPCHAT 不填默认走个人的队列
+}
+//服务端回ack消息,ack带有client消息ID和对应的server端消息ID,server端消息ID在ack结构体外
+message Server2ClientAckMsgSt {
+    int64 clientMsgId = 1;          //客户端消息ID
+    AckCodeEnum code = 2;           //返回状态码
+    string des = 3;                 //当返回错误时，msg会返回最新登陆的客户端的描述信息，可以直接用于客户端的显示
+    MsgTypeEnum msgType = 4;        //消息类型
+    SenWordRetTypeEnum SenWordRetType = 5;
+    string senWordContent = 6;      //敏感词过滤后的内容
+}
+
+//ios客户端切入后台消息
+message ClientSleepMsgSt {
+    int32 unReadMsgNum = 1;         //未读消息数，登录成功后清零
+}
+
+//踢人消息(即时消息)
+message KickoutMsgSt {
+    KickTypeEnum kickType = 1;      //同端踢人/服务端强制下线/服务端删除用户/服务端禁用用户/修改密码
+    string deviceModel = 2;         //from终端设备型号,iphoneX/华为P20/小米m6等
+    string deviceId = 3;            //to终端设备ID
+    string des = 4;                 //描述
+    string millipedeId = 5;         //服务端使用
+    string fromDeviceId = 6;        //
+}
+
+//服务器测试消息
+message ServerCmdSt {
+    int32 cmdMsgType = 1;               //消息类型
+    string userid = 2;                  //用户名
+    DeviceTypeEnum device = 3;  //终端设备类型,手机/PC等
+    int32 value = 4;                    //
+    repeated string others = 5;         //其它参数
+}
+
+//登录消息,userID在login结构体外
+message LoginMsgSt {
+    string pwd = 1;                 //用户密码
+    string ver = 2;                 //sdk版本
+    DeviceTypeEnum device = 3;  //终端设备类型,手机/PC等
+    string deviceModel = 4;         //终端设备型号,iphoneX/华为P20/小米m6等
+    string deviceId = 5;            //终端设备ID 安卓：imei，ios：deviceId, pc:mac
+    bool auto = 6;                  //是否自动登录,true为自动登录,false为手动登录
+    bytes extMsg = 7;               //扩展消息
+    bool isGuest = 8;               //是否是游客  true:游客  false:注册用户
+}
+
+//群结构改变消息
+message GroupChangeMsgSt {
+    GroupMsgTypeEnum groupMsgType = 1;                //群消息类型
+    bytes ext = 2;                                    //扩展字段
+
+    GroupAddMemSt groupAddMem = 3;                    //邀请入群
+    GroupDelMemSt groupDelMem = 4;                    //删除群员
+    GroupMemQuitSt groupMemQuit = 5;                  //群员退出
+    GroupDismissSt groupDisMiss = 6;                  //解散群
+    GroupChangeOwnerSt groupChangeOwner = 7;          //更改群主
+    GroupChangeNameSt groupChangeName = 8;            //更改群名
+    GroupChangeDesSt groupChangeDes = 9;              //更改群描述
+    GroupChangeMaxUsersSt groupChangeMaxUsers = 10;   //更改群成员上限
+    GroupChangeAnnounceSt groupChangeAnnounce = 11;   //更改群公告
+    GroupDetailSt groupDetail = 12;                   //群详情
+    GroupMembersSt groupMembers = 13;                 //群成员
+    GroupChangeAvatarSt groupChangeAvatar = 14;       //更改群头像
+    GroupChangeTopSt groupChangeTop = 15;             //更改群置顶
+    GroupChangeDisturbSt groupChangeDisturb = 16;     //更改群免打扰
+}
+
+//聊天消息
+message ChatMsgSt {
+    ContentTypeEnum contentType = 1;            //消息体类型
+
+    bytes ext = 2;                              //扩展字段
+
+    string txtContent = 3;                      //文本消息
+    ImgContentSt imgContent = 4;                //图片消息
+    VoiceContentSt voiceContent = 5;            //语音消息
+    VideoContentSt videoContent = 6;            //视频消息
+    LocationContentSt locationContent = 7;      //位置消息
+    FileContentSt fileContent = 8;              //文件消息
+    bytes customContent = 9;                    //自定义消息
+    RecallContentSt recallContent = 10;         //撤回消息
+    ReadedContentSt readedAckMsg = 11;          //已读消息
+    CmdContentSt cmdContent = 12;               //cmd消息
+    AtContentSt atContent = 13;                 //@消息 特殊的文本消息
+    BuzContentSt buzContent = 14;               //业务消息
+    RedPktMsgst redPktMsg = 15;                 //发红包消息
+    RedPktNoticeMsgst redPktNoticeMsg = 16;     //收红包通知消息
+    TxtContentSt txtContentMsg = 17;            //文本消息，带有title
+}
+
+//client、server、redis、hbase消息发送、存储格式
+//client退出登录、心跳包，只发clientMsgId,fromUserId和msgType即可
+//server收到client收到的消息后，更改msgid为server端id，添加server端时间戳，
+message MsgSt {
+    int64 clientMsgId = 1;                      //client消息ID
+    int64 serverMsgId = 2;                      //server端消息ID
+    string fromId = 3;                          //发送者ID（用户或系统推送）
+    string toId = 4;                            //接收方ID（用户或群）
+    string toUserId = 5;                        //接收者userID（服务端使用）
+    DeviceTypeEnum device = 6;                  //终端设备类型,手机/PC等
+    MsgTypeEnum msgType = 7;                    //消息类型
+
+    LoginMsgSt loginMsg = 8;                    //登录消息
+    ChatMsgSt chatMsg = 9;                      //聊天消息内容
+
+    GroupChangeMsgSt groupChangeMsg = 10;       //群结构更改消息
+    ClientSleepMsgSt clientSleepMsg = 11;       //client切入后台
+
+    Client2ServerAckMsgSt cli2serAckMsg = 12;   //client向server发送tcpack
+    Server2ClientAckMsgSt ser2cliAckMsg = 13;   //server向client发送tcpack
+    KickoutMsgSt kickoutMsg = 14;               //踢人消息
+    ServerCmdSt serverCmdMsg = 15;              //服务器测试消息
+    ConfMsgSt confMsg = 16;                     //视频会议消息
+    CallMsgst callMsg = 17;                     //视频通话消息
+    repeated Client2ServerAckMsgSt2 cli2serAckMsgs = 18; //client向server发送tcpack
+}
+
+//server端支持消息批量发送
+message ServerSendMsgs {
+    repeated MsgSt msgContent = 1;  //server端支持消息批量发送
+    MsgTypeEnum msgType = 2;        //消息类型 只填NOTICEPUSH GROUPCHAT 不填默认走个人的队列
+    string groupId = 3;
+    int64 lastMsgId = 4;                //最后一条msgId
+}
+//客户端支持消息批量发送
+message BatchMsgs {
+    repeated MsgSt msgContent = 1;  //
+}
+
+/**************服务端内部使用**************/
+//push接口参数
+//MsgTypeEnum 为GROUPCHAT时，groupId需要赋值，
+//如果需要群里部分人收消息，toId为该群里需要接收消息的人id
+//如果需要群里所有人都收到消息，toId为空
+message PushParamSt {
+    int64 clientMsgId = 1;               //client消息ID 只有红包消息用到
+    int64 serverMsgId = 2;               //server端消息ID
+    string fromId = 3;                   //消息发送者/操作者
+    repeated string toId = 4;            //接收方ID（uid）
+    string groupId = 5;                  //群id      
+    DeviceTypeEnum device = 6;   //接收方终端类型, 移动端：ANDROID  pc端：WIN
+    MsgTypeEnum msgType = 7;             //消息类型
+    ChatMsgSt chatMsg = 8;               //聊天消息内容
+    KickoutMsgSt kickoutMsg = 9;         //踢掉指定在线端,toId只能是uid
+    GroupChangeMsgSt groupChangeMsg = 10; //群结构更改消息
+    ConfMsgSt confMsg = 11;              //视频会议消息
+    int32 offLinePushFlag = 12;          //是否给toId离线推送，1推送，2不推送，默认1
+    int32 pushToUserScope = 13;          //消息push范围，0:toId，1:fromId和toId，默认0, 只对PRICHAT有效
+    CallMsgst callMsg = 14;              //视频通话消息
+}
+//offline push
+message OfflinePushParamSt {
+    int64 serverMsgId = 1;              //server端消息ID
+    string fromId = 2;                  //消息发送者/操作者  客户端跳转页面用
+    string toId = 3;                    //接收ID(用户或群)   客户端跳转页面用
+    MsgTypeEnum msgType = 4;            //消息体类型        客户端跳转页面用
+    bytes ext = 5;                      //扩展字段          客户端跳转页面用 目前对应ChatMsgSt的ext
+    string pushToken = 6;               //接收消息的token或id，接收者的唯一标识
+    PhoneTypeEnum phoneType = 7;//手机类型
+    string content = 8;                 //推送内容
+    int32 unReadNum = 9;                //未读数
+    string app_key = 10;                
+    string package_name = 11;           //安卓：应用包名，ios：bundle_id
+    string title = 12;                  //推送title
+    bytes ext1 = 13;                    //扩展字段1          客户端跳转页面用  目前对应ConfMsgSt
+}
+
+//指定appkey的移动端登录用户或游客的消息推送  NOTICEPUSH
+message AppkeyPushSt {
+    int64 serverMsgId = 1;              //server端消息ID
+    bool isSend = 2;                    //发送or撤回消息
+    string fromId = 3;                  //消息发送者
+    string appkey = 4;                  //指定appkey
+    int32 pushToUserScope = 5;          //消息push范围，0:all，1:登录用户，2:游客，默认0
+    int32 ttl = 6;                      //消息保存时间，单位秒，如果是0则为即时消息
+    ChatMsgSt chatMsg = 7;              //消息内容
+}
+
