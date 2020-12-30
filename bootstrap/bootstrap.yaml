@@ -29,7 +29,6 @@ manager:
 #consul的地址和端口
 #注册到consul上的实例ID和微服务名
 consul:
-  #host: 10.1.3.69
   host: 192.168.73.3
   port: 8500
   instanceId: 1

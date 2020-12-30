@@ -4,11 +4,11 @@ import (
 	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/balancer/base"
 	"google.golang.org/grpc/grpclog"
-	"websocket-im/util/grpclb/common"
 	"log"
 	"math/rand"
 	"sync"
 	"time"
+	"websocket-im/util/grpclb/common"
 )
 
 const Random = "random_x"

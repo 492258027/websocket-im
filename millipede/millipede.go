@@ -1,6 +1,7 @@
 package millipede
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"github.com/golang/protobuf/proto"
@@ -36,6 +37,7 @@ const GrpcTimeout = 1            //grpc 超时时间阈值
 const ForwardMsgTimeout = 10     //本地消息转发到writerCh超时阈值， 毫秒
 const IsAutoAckMq = false        //消费者读取mq是否自动回Ack
 var MaxDaysOfflineMsg = int64(7) //清理未读消息时间阈值，单位为天， 可以通过管理端改变
+var GrpcClient pb.IMClient       //grpclb client
 
 func ReadMsg(w http.ResponseWriter, r *http.Request) {
 	//解析http相关参数。
@@ -580,7 +582,7 @@ func PutMsgToMq(millipedeId string, msg *pb.MsgSt) error {
 //新消息通知消息中需要提供toid及deviceType。其中toid指定转发到那个用户，deviceType指定转发到那个端
 // 不需要每次新建连接，可以复用Cli, delay
 func ForwardMsgRpc(millipedeId string, msg *pb.MsgSt) error {
-	imResp, err := Cli.Forward(context.TODO(), msg)
+	imResp, err := GrpcClient.Forward(context.TODO(), msg)
 	if err != nil {
 		log.Logrus.Debugln(err)
 		return err
@@ -754,7 +756,6 @@ func checkToken_grpc(token string) error {
 //参数二是被踢者在redis中存储的信息
 //参数三是新需要登录的用户信息
 func Kickout(userid string, userInRedis *pb.UserRedisSt, user *UserSt) {
-
 	//组踢人消息
 	kickoutMsgTmp := &pb.KickoutMsgSt{
 		KickType:     pb.KickTypeEnum_SAMEITEMLOGIN,

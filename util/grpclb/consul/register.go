@@ -3,8 +3,8 @@ package consul
 import (
 	"fmt"
 	consul "github.com/hashicorp/consul/api"
-	"websocket-im/util/grpclb/common"
 	"log"
+	"websocket-im/util/grpclb/common"
 )
 
 type consulRegister struct {

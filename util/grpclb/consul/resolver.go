@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/attributes"
 	"google.golang.org/grpc/resolver"
-	"websocket-im/util/grpclb/common"
 	"log"
+	"websocket-im/util/grpclb/common"
 )
 
 const schema = "juzhouyun"

@@ -3,10 +3,10 @@ package balancer
 import (
 	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/balancer/base"
-	"websocket-im/util/grpclb/common"
 	"log"
 	"math/rand"
 	"sync"
+	"websocket-im/util/grpclb/common"
 )
 
 const RoundRobin = "round_robin_x"

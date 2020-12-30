@@ -11,6 +11,7 @@ import (
 	m "websocket-im/millipede"
 	pb "websocket-im/pb"
 	"websocket-im/util/bootstrap"
+	"websocket-im/util/grpclb/balancer"
 	"websocket-im/util/grpclb/common"
 	"websocket-im/util/grpclb/consul"
 	"websocket-im/util/log"
@@ -61,13 +62,22 @@ func main() {
 		Metadata: map[string]string{
 			common.WeightKey:  "1",
 			common.InstanceId: bootstrap.ConsulConfig.InstanceId,
-			common.GrpcPort:  strconv.Itoa(bootstrap.RpcConfig.Port),
+			common.GrpcPort:   strconv.Itoa(bootstrap.RpcConfig.Port),
 		},
 	}, 5)
 	if err != nil {
 		log.Logrus.Fatalln("Fail to register consul", err)
 	}
 	defer r.Unregister()
+
+	//初始化grpc client
+	conn, err := consul.InitResolver(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port, bootstrap.ConsulConfig.ServiceName, balancer.InstanceID)
+	if err != nil {
+		log.Logrus.Fatalln("Fail to register consul", err)
+	}
+	defer conn.Close()
+	// 建立gRPC连接
+	m.GrpcClient = pb.NewIMClient(conn)
 
 	//初始化snowflake
 	snowflake.InitSnowFlake(bootstrap.ConsulConfig.InstanceId)
@@ -114,7 +124,7 @@ func main() {
 		errc <- http.ListenAndServe(addr, r)
 	}()
 
-	// gRPC transport.
+	// gRPC server.
 	go func() {
 		log.Logrus.Debugln("IM", "gRPC", "addr", bootstrap.RpcConfig.Host, bootstrap.RpcConfig.Port)
 		addr := bootstrap.RpcConfig.Host + ":" + strconv.Itoa(bootstrap.RpcConfig.Port)
@@ -137,6 +147,3 @@ func main() {
 	// Run!
 	log.Logrus.Debugln("exit", <-errc)
 }
-
-
-

@@ -3,9 +3,9 @@ package balancer
 import (
 	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/balancer/base"
-	"websocket-im/util/grpclb/common"
 	"log"
 	"sync"
+	"websocket-im/util/grpclb/common"
 )
 
 const InstanceID = "instance_x"
