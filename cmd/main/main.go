@@ -15,7 +15,7 @@ import (
 	m "websocket-im/millipede"
 	pb "websocket-im/pb"
 	"websocket-im/util/bootstrap"
-	//"websocket-im/util/grpclb/balancer"
+	"websocket-im/util/grpclb/balancer"
 	"websocket-im/util/grpclb/common"
 	"websocket-im/util/grpclb/consul"
 	"websocket-im/util/log"
@@ -73,23 +73,28 @@ func main() {
 	}
 	defer r.Unregister()
 
-	//初始化grpc client
-	conn, err := consul.InitResolver(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port, bootstrap.ConsulConfig.ServiceName + ":" + bootstrap.ConsulConfig.Version, "round_robin")
+	//初始化millipede之间相互转发信息的 grpc client
+	conn, err := consul.InitResolver(bootstrap.ConsulConfig.Host, bootstrap.ConsulConfig.Port,
+		bootstrap.ConsulConfig.ServiceName + ":" + bootstrap.ConsulConfig.Version, balancer.InstanceID)
 	if err != nil {
 		log.Logrus.Fatalln("Fail to resolver consul", err)
 	}
 	defer conn.Close()
-	// 建立gRPC连接
 	m.GrpcClient = pb.NewIMClient(conn)
+
+	//初始化鉴权服务的grpc client, delay
 
 	//初始化snowflake
 	snowflake.InitSnowFlake(bootstrap.ConsulConfig.InstanceId)
 
 	//初始化redis
-	redis.InitRedis(bootstrap.Redisconfig.ClusterIPs, bootstrap.Redisconfig.PoolSize, bootstrap.Redisconfig.MinIdleConns, bootstrap.Redisconfig.Password)
+	redis.InitRedis(bootstrap.Redisconfig.ClusterIPs, bootstrap.Redisconfig.PoolSize,
+		bootstrap.Redisconfig.MinIdleConns, bootstrap.Redisconfig.Password)
 
 	//初始化Mq
-	rabbitmq.InitRabbitMq(bootstrap.Mqconfig.PoolSize, bootstrap.Mqconfig.AmqpURI, bootstrap.Mqconfig.ExchangeName, bootstrap.Mqconfig.ExchangeType, bootstrap.Mqconfig.QueueName, bootstrap.Mqconfig.RoutingKey)
+	rabbitmq.InitRabbitMq(bootstrap.Mqconfig.PoolSize, bootstrap.Mqconfig.AmqpURI,
+		bootstrap.Mqconfig.ExchangeName, bootstrap.Mqconfig.ExchangeType,
+		bootstrap.Mqconfig.QueueName, bootstrap.Mqconfig.RoutingKey)
 
 	//初始化map表
 	m.InitUserStMap()

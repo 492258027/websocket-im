@@ -11,6 +11,7 @@ import (
 	"time"
 	pb "websocket-im/pb"
 	"websocket-im/util/bootstrap"
+	"websocket-im/util/grpclb/common"
 	"websocket-im/util/log"
 	mq "websocket-im/util/rabbitmq"
 	"websocket-im/util/snowflake"
@@ -582,7 +583,7 @@ func PutMsgToMq(millipedeId string, msg *pb.MsgSt) error {
 //新消息通知消息中需要提供toid及deviceType。其中toid指定转发到那个用户，deviceType指定转发到那个端
 // 不需要每次新建连接，可以复用Cli, delay
 func ForwardMsgRpc(millipedeId string, msg *pb.MsgSt) error {
-	imResp, err := GrpcClient.Forward(context.TODO(), msg)
+	imResp, err := GrpcClient.Forward(context.WithValue(context.Background(), common.InstanceId, millipedeId), msg)
 	if err != nil {
 		log.Logrus.Debugln(err)
 		return err

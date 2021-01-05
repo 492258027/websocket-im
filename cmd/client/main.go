@@ -13,7 +13,7 @@ import (
 	pb "websocket-im/pb"
 )
 
-var addr = flag.String("addr", "192.168.73.3:5360", "http service address")
+var addr = flag.String("addr", "192.168.73.3:5340", "http service address")
 
 func main() {
 	flag.Parse()
