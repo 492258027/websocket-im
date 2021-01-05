@@ -50,12 +50,17 @@ type instancePicker struct {
 
 func (p *instancePicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 	ret := balancer.PickResult{}
-	p.mu.Lock()
-	if v, ok := p.subConns[info.Ctx.Value(common.InstanceId).(string)]; ok {
-		ret.SubConn = v
-	}
 
+	p.mu.Lock()
+	if ins := info.Ctx.Value(common.InstanceId); ins != nil{
+		if m, ok := ins.(string); ok {
+			if v, ok := p.subConns[m]; ok {
+				ret.SubConn = v
+			}
+		}
+	}
 	log.Println("pick SubConn: ", ret.SubConn)
 	p.mu.Unlock()
+
 	return ret, nil
 }

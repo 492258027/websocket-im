@@ -693,7 +693,7 @@ func dispatchMsg(conn *websocket.Conn, msg *pb.MsgSt, from_useridmap string, msg
 	if millipedeId, err := GetMillipedeByUser(toid); err != nil {
 		log.Logrus.Error("dispatchMsg: get millipede failure:", err)
 	} else {
-		log.Logrus.Debugln("dispatchMsg: to user exist millipede num: ", millipedeId)
+		log.Logrus.Debugln("dispatchMsg: to user exist millipede: ", millipedeId)
 
 		msgNew.Device = pb.DeviceTypeEnum_ALL
 		if err := ForwardMsgRpc(millipedeId, msgNew); err != nil {
@@ -721,30 +721,6 @@ func timerReset(timer *time.Timer, seconds int) {
 //鉴权服务
 func checkToken_grpc(token string) error {
 	/*
-		//鉴权服务
-		agent, err := discover.Discover(bootstrap.GatewayConfig.ConsulAuthName)
-		if err != nil {
-			return err
-		}
-
-		var port string
-		if v, ok := agent.Meta["rpcport"]; ok {
-			port = v
-		} else {
-			return errCode.ErrNoGrpcPort
-		}
-
-		addr := agent.Address + ":" + port
-
-		conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithTimeout(1*time.Second))
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-
-		authCli, _ := auth_r.New(conn)
-		authResp, err := authCli.Auth(context.TODO(), &auth_pb.AuthRequest{"Check_Token", "", "", "", "", token, ""})
-
 		//鉴权未通过
 		if err != nil || authResp.Valid != "true" {
 			return errCode.ErrInvalidAToken
